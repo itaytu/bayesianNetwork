@@ -19,6 +19,10 @@ public class cpt implements Comparable<cpt>{
         }
     }
 
+    public cpt() {
+        cptTable = new ArrayList<>();
+    }
+
 
     //TODO: find a way to merge with parents and without parents
     private void fillCptTable(ArrayList<String> nodeArray, node myNode){

@@ -91,11 +91,23 @@ public class algorithm {
         minimizeCpts(myQuery, myCpts);
 
         for (String[] hiddenVariable : hiddenVariables) {
-            PriorityQueue<cpt> cptTables = new PriorityQueue<>();
+            PriorityQueue<cpt> cptPriorityQueue = new PriorityQueue<>();
+            for (int i = 0; i < myCpts.size(); i++) {
+                if (myCpts.get(i).getCptTable().get(0).contains(hiddenVariable[0])) {
+                    cptPriorityQueue.add(myCpts.get(i));
+                    myCpts.remove(i);
+                    i--;
+                }
+            }
 
+            while(cptPriorityQueue.size() > 1) {
+                   cpt tableOne = cptPriorityQueue.poll();
+                   cpt tableTwo = cptPriorityQueue.poll();
+                   cpt joined = joinCpts(tableOne, tableTwo, hiddenVariable[0]);
+                   cptPriorityQueue.add(joined);
+            }
 
-
-
+            myCpts.add(cptPriorityQueue.poll());
 
 
         }
@@ -137,7 +149,7 @@ public class algorithm {
                             }
                         }
 
-                        for (ArrayList<String> rowInCpt : currentCpt) {
+                      for (ArrayList<String> rowInCpt : currentCpt) {
                             rowInCpt.remove(index);
                         }
                     }
@@ -147,8 +159,37 @@ public class algorithm {
     }
 
 
-    private static void joinCpts(cpt tableOne, cpt tableTwo) {
+    private static cpt joinCpts(cpt tableOne, cpt tableTwo, String hiddenVariable) {
+        cpt jointCpt = new cpt();
+        ArrayList<String> commonVariables = new ArrayList<>();
+        ArrayList<String> differentVariables = new ArrayList<>();
+        for (String variable : tableOne.getCptTable().get(0)) {
+            if(tableTwo.getCptTable().get(0).contains(variable))
+                commonVariables.add(variable);
+            else if (!variable.contains("P")) {
+                    differentVariables.add(variable);
+            }
+        }
 
+        for (String variable : tableTwo.getCptTable().get(0)){
+            if (!commonVariables.contains(variable) && !variable.contains("P"))
+                differentVariables.add(variable);
+        }
+
+        ArrayList<String> header = new ArrayList<>();
+        header.addAll(commonVariables);
+        header.addAll(differentVariables);
+        header.add("P()");
+        jointCpt.getCptTable().add(header);
+
+        ArrayList<String[]> commonValues = new ArrayList<>();
+        for (int i = 1; i < tableOne.getCptTable().size(); i++) {
+            
+        }
+
+
+
+        return jointCpt;
     }
 
 
