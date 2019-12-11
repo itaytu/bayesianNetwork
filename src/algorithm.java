@@ -1,10 +1,11 @@
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.PriorityQueue;
-import java.util.Queue;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.*;
 
 public class algorithm {
 
+    static int addOperations;
+    static int multiplyOperations;
 
     static String isIndependent(String query, ArrayList<node> nodes) {
         cleanGraph(nodes);
@@ -65,9 +66,13 @@ public class algorithm {
     }
 
 
+
+
     static String variableElimination(String query, ArrayList<node> nodes) {
         String ans = "";
         cleanGraph(nodes);
+        addOperations = 0;
+        multiplyOperations = 0;
         ArrayList<String[]> myQuery = nodesInVariableElmination(query, nodes);
         ArrayList<String[]> hiddenVariables = new ArrayList<>();
         for(int i = 0; i < myQuery.size(); i++) {
@@ -101,25 +106,71 @@ public class algorithm {
             }
 
             while(cptPriorityQueue.size() > 1) {
-                   cpt tableOne = cptPriorityQueue.poll();
-                   cpt tableTwo = cptPriorityQueue.poll();
-                   cpt joined = joinCpts(tableOne, tableTwo, hiddenVariable[0]);
-                   cptPriorityQueue.add(joined);
+                cpt tableOne = cptPriorityQueue.poll();
+                cpt tableTwo = cptPriorityQueue.poll();
+                cpt joined = joinCpts(tableOne, tableTwo);
+                System.out.println("JOINED TABLE:");
+                for (ArrayList<String> row : joined.getCptTable()){
+                    System.out.println(row.toString());
+                }
+                System.out.println();
+                cptPriorityQueue.add(joined);
             }
-
-            myCpts.add(cptPriorityQueue.poll());
-
-
+            cpt eliminatedTable = eliminateVariable(Objects.requireNonNull(cptPriorityQueue.poll()), hiddenVariable[0]);
+            myCpts.add(eliminatedTable);
         }
 
-
-
-
+        PriorityQueue<cpt> cptPriorityQueue = new PriorityQueue<>(myCpts);
+        while(cptPriorityQueue.size() > 1) {
+            cpt tableOne = cptPriorityQueue.poll();
+            cpt tableTwo = cptPriorityQueue.poll();
+            cpt joined = joinCpts(tableOne, tableTwo);
+            cptPriorityQueue.add(joined);
+        }
+        cpt answer = cptPriorityQueue.poll();
+        BigDecimal normalized = normalize(answer, myQuery.get(0)[1]);
+        ans = normalized.toString() + "," + addOperations + "," + multiplyOperations;
         return ans;
     }
 
 
     private static String findInCpt(ArrayList<String[]> myQuery, ArrayList<cpt> myCpts) {
+
+ /*       for (cpt table : myCpts) {
+            int index = table.getCptTable().get(0).size();
+            ArrayList<String> probability = new ArrayList<>();
+            String probabilityAsString = table.getCptTable().get(0).get(index);
+            String givenVariable = probabilityAsString.substring(probability.indexOf('(') + 1, probability.indexOf('|'));
+            probability.add(givenVariable);
+            String evidenceVariablesAsString = probabilityAsString.substring(probability.indexOf('|')+1);
+            evidenceVariablesAsString = evidenceVariablesAsString.replace(")", "");
+            String[] evidenceVariables = evidenceVariablesAsString.split(",");
+            probability.addAll(Arrays.asList(evidenceVariables));
+
+            boolean flag = true;
+            for (String[] variable : myQuery){
+                if(!probability.contains(variable[0]))
+                    flag = false;
+            }
+            if (flag){
+                int rowIndex= -1;
+            }
+
+
+
+            for (int j = 1; j < table.getCptTable().size(); j++) {
+                for (String[] commonVal : commonValuesList) {
+                    int index = tableTwo.getCptTable().get(0).indexOf(commonVal[0]);
+                    if (!tableTwo.getCptTable().get(j).get(index).equals(commonVal[1]))
+                        flag = false;
+                    else {
+                        flag = true;
+                        rowIndexTableTwo = j;
+                    }
+                }
+            }
+
+        }*/
 
 
 
@@ -130,10 +181,10 @@ public class algorithm {
 
     private static void minimizeCpts(ArrayList<String[]> myQuery, ArrayList<cpt> myCpts) {
         if(myQuery.size() > 1) {
-           // myQuery.remove(0); //TODO: check if it makes problems
+            // myQuery.remove(0); //TODO: check if it makes problems
             for (int j = 1; j < myQuery.size(); j++) {
-                for (cpt cptTable : myCpts) {
-                    ArrayList<ArrayList<String>> currentCpt = cptTable.getCptTable();
+                for (int k = 0; k < myCpts.size(); k++) {
+                    ArrayList<ArrayList<String>> currentCpt = myCpts.get(k).getCptTable();
                     ArrayList<String> header = currentCpt.get(0);
                     int index = -1;
                     for (int i = 0; i < header.size(); i++) {
@@ -149,8 +200,13 @@ public class algorithm {
                             }
                         }
 
-                      for (ArrayList<String> rowInCpt : currentCpt) {
+                        for (ArrayList<String> rowInCpt : currentCpt) {
                             rowInCpt.remove(index);
+                        }
+
+                        if (currentCpt.get(0).size() == 1) {
+                            myCpts.remove(k);
+                            k--;
                         }
                     }
                 }
@@ -159,15 +215,15 @@ public class algorithm {
     }
 
 
-    private static cpt joinCpts(cpt tableOne, cpt tableTwo, String hiddenVariable) {
+    private static cpt joinCpts(cpt tableOne, cpt tableTwo) {
         cpt jointCpt = new cpt();
         ArrayList<String> commonVariables = new ArrayList<>();
         ArrayList<String> differentVariables = new ArrayList<>();
         for (String variable : tableOne.getCptTable().get(0)) {
-            if(tableTwo.getCptTable().get(0).contains(variable))
+            if(tableTwo.getCptTable().get(0).contains(variable) && !variable.contains("P"))
                 commonVariables.add(variable);
             else if (!variable.contains("P")) {
-                    differentVariables.add(variable);
+                differentVariables.add(variable);
             }
         }
 
@@ -182,15 +238,128 @@ public class algorithm {
         header.add("P()");
         jointCpt.getCptTable().add(header);
 
-        ArrayList<String[]> commonValues = new ArrayList<>();
+        //Start from row 1 in Table one
         for (int i = 1; i < tableOne.getCptTable().size(); i++) {
-            
+            ArrayList<String[]> commonValuesList = new ArrayList<>();
+            String tableOneValue = tableOne.getCptTable().get(i).get(tableOne.getCptTable().get(i).size()-1);
+            BigDecimal firstValue = new BigDecimal(tableOneValue);
+            for (String commonVal : commonVariables) {
+                String[] commonValue = new String[2];
+                commonValue[0] = commonVal;
+                int index = tableOne.getCptTable().get(0).indexOf(commonVal);
+                commonValue[1] = tableOne.getCptTable().get(i).get(index);
+                commonValuesList.add(commonValue);
+            }
+
+            //Start from row 1 in Table two and look for the wanted row
+            int rowIndexTableTwo = -1;
+            boolean flag = true;
+            for (int j = 1; j < tableTwo.getCptTable().size(); j++) {
+                ArrayList<String[]> allValuesList = new ArrayList<>(commonValuesList);
+                for (String[] commonVal : commonValuesList) {
+                    int index = tableTwo.getCptTable().get(0).indexOf(commonVal[0]);
+                    if (!tableTwo.getCptTable().get(j).get(index).equals(commonVal[1]))
+                        flag = false;
+                    else {
+                        flag = true;
+                        rowIndexTableTwo = j;
+                    }
+                }
+                if(flag) {
+                    int rowSize = tableTwo.getCptTable().get(rowIndexTableTwo).size() - 1;
+                    String secondTableValue = tableTwo.getCptTable().get(rowIndexTableTwo).get(rowSize);
+                    BigDecimal secondValue = new BigDecimal(secondTableValue);
+                    //add all different values from the 2 tables to the list
+                    for (String diffVariable : differentVariables) {
+                        if (tableOne.getCptTable().get(0).contains(diffVariable)) {
+                            int index = tableOne.getCptTable().get(0).indexOf(diffVariable);
+                            String[] diffVal = new String[2];
+                            diffVal[0] = diffVariable;
+                            diffVal[1] = tableOne.getCptTable().get(i).get(index);
+                            allValuesList.add(diffVal);
+                        } else if (tableTwo.getCptTable().get(0).contains(diffVariable)) {
+                            int index = tableTwo.getCptTable().get(0).indexOf(diffVariable);
+                            String[] diffVal = new String[2];
+                            diffVal[0] = diffVariable;
+                            diffVal[1] = tableTwo.getCptTable().get(rowIndexTableTwo).get(index);
+                            allValuesList.add(diffVal);
+                        }
+                    }
+
+                    //add new row in the new cpt Table
+                    ArrayList<String> newCptRow = new ArrayList<>();
+                    for (String[] value : allValuesList) {
+                        int index = header.indexOf(value[0]);
+                        newCptRow.add(index, value[1]);
+                    }
+                    BigDecimal newValue = firstValue.multiply(secondValue);
+                    multiplyOperations++;
+                    String newValueString = newValue.toString();
+                    newCptRow.add(newValueString);
+                    jointCpt.getCptTable().add(newCptRow);
+                }
+            }
+
         }
-
-
-
         return jointCpt;
     }
+
+
+    private static cpt eliminateVariable(cpt table, String hiddenVariable) {
+        cpt eliminatedTable = new cpt();
+        ArrayList<String[]> variablesValues = new ArrayList<>();
+        for (String variable : table.getCptTable().get(0)){
+            if(!variable.equals(hiddenVariable) && !variable.contains("P")) {
+                String[] variableValue = new String[2];
+                variableValue[0] = variable;
+                variablesValues.add(variableValue);
+            }
+        }
+
+        ArrayList<String> header = new ArrayList<>();
+        for (String[] variable : variablesValues){
+            header.add(variable[0]);
+        }
+        header.add("P()");
+        eliminatedTable.getCptTable().add(header);
+
+        for (int i = 1; i < table.getCptTable().size() - 1; i++){
+            int size = table.getCptTable().get(i).size();
+            BigDecimal value = new BigDecimal(table.getCptTable().get(i).get(size-1));
+            for (String[] variablesValue : variablesValues) {
+                int variableIndex = table.getCptTable().get(0).indexOf(variablesValue[0]);
+                variablesValue[1] = table.getCptTable().get(i).get(variableIndex);
+            }
+            for (int j = i + 1; j < table.getCptTable().size(); j++) {
+                boolean flag = true;
+                for (String[] variableValue: variablesValues) {
+                    int variableIndex = table.getCptTable().get(0).indexOf(variableValue[0]);
+                    if(!table.getCptTable().get(j).get(variableIndex).equals(variableValue[1])){
+                        flag = false;
+                    }
+                }
+                if (flag) {
+                    BigDecimal valueToAdd = new BigDecimal(table.getCptTable().get(j).get(size-1));
+                    value = value.add(valueToAdd);
+                    addOperations++;
+                    table.getCptTable().remove(j);
+                    j--;
+                }
+            }
+            //add new row in the new cpt Table
+            ArrayList<String> newCptRow = new ArrayList<>();
+            for (String[] variableValue : variablesValues) {
+                int index = header.indexOf(variableValue[0]);
+                newCptRow.add(index, variableValue[1]);
+            }
+            String newValueString = value.toString();
+            newCptRow.add(newValueString);
+            eliminatedTable.getCptTable().add(newCptRow);
+        }
+        return eliminatedTable;
+    }
+
+
 
 
     private static ArrayList<node> nodesInQuery(String query, ArrayList<node> nodes) {
@@ -238,12 +407,30 @@ public class algorithm {
             String[] evidenceValue = evidenceVar.split("=");
             nodesInVE.add(evidenceValue);
         }
-        for (String hiddenVar : hiddenVariables.split("-")){
-            String[] hiddenVarValue = new String[1];
-            hiddenVarValue[0] = hiddenVar;
-            nodesInVE.add(hiddenVarValue);
+        if(!hiddenVariables.isEmpty()) {
+            for (String hiddenVar : hiddenVariables.split("-")) {
+                String[] hiddenVarValue = new String[1];
+                hiddenVarValue[0] = hiddenVar;
+                nodesInVE.add(hiddenVarValue);
+            }
         }
         return nodesInVE;
+    }
+
+
+    private static BigDecimal normalize(cpt answer, String value){
+        BigDecimal numerator = new BigDecimal("0.0");
+        BigDecimal denominator = new BigDecimal("0.0");
+        for (int i = 1; i < answer.getCptTable().size(); i++) {
+            int size = answer.getCptTable().get(i).size();
+            if(answer.getCptTable().get(i).get(0).equals(value))
+                numerator = numerator.add(new BigDecimal(answer.getCptTable().get(i).get(size-1)));
+            denominator = denominator.add(new BigDecimal(answer.getCptTable().get(i).get(size-1)));
+            addOperations++;
+        }
+        BigDecimal normalized = numerator.divide(denominator, 5, RoundingMode.HALF_EVEN);
+        addOperations-=1;
+        return normalized;
     }
 
 

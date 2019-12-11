@@ -129,7 +129,24 @@ public class cpt implements Comparable<cpt>{
 
     @Override
     public int compareTo(cpt o) {
-        return Integer.compare(this.cptTable.size(), o.cptTable.size()) ;
+        int compare =  Integer.compare(this.cptTable.size(), o.cptTable.size());
+        if(compare == 0) {
+            int asciiOne = 0;
+            int asciiTwo = 0;
+            for (String var : this.cptTable.get(0)){
+                if(!var.contains("P"))
+                    asciiOne += (int) var.charAt(0);
+            }
+            for (String var : o.cptTable.get(0)){
+                if(!var.contains("P"))
+                    asciiTwo += (int) var.charAt(0);
+            }
+            if(asciiOne > asciiTwo)
+                compare = 1;
+            else
+                compare = -1;
+        }
+        return compare;
     }
 
 
