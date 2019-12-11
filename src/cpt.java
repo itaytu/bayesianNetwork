@@ -1,6 +1,7 @@
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 
 public class cpt implements Comparable<cpt>{
 
@@ -48,9 +49,7 @@ public class cpt implements Comparable<cpt>{
 
                 for (int j = 0; j < nodeValues.length - 1; j+=2){
                     ArrayList<String> cptRowValues = new ArrayList<>();
-                    for (int k = 0; k < parentsValues.length; k++) {
-                        cptRowValues.add(parentsValues[k]);
-                    }
+                    Collections.addAll(cptRowValues, parentsValues);
                     cptRowValues.add(nodeValues[j]);
                     myNodeValues.remove(nodeValues[j]);
                     cptRowValues.add(nodeValues[j+1]);
@@ -60,9 +59,7 @@ public class cpt implements Comparable<cpt>{
 
                 complement = complement.subtract(probability);
                 ArrayList<String> cptRowValues = new ArrayList<>();
-                for (int j = 0; j < parentsValues.length; j++) {
-                    cptRowValues.add(parentsValues[j]);
-                }
+                Collections.addAll(cptRowValues, parentsValues);
                 cptRowValues.add(myNodeValues.get(0));
                 cptRowValues.add(complement.toString());
                 cptTable.add(cptRowValues);
@@ -95,11 +92,6 @@ public class cpt implements Comparable<cpt>{
                 cptTable.add(cptRowValues);
             }
         }
-
-        for (ArrayList<String> line : cptTable) {
-            System.out.println(Arrays.toString(line.toArray()));
-        }
-        System.out.println();
     }
 
 
@@ -110,13 +102,13 @@ public class cpt implements Comparable<cpt>{
                     header.add(String.valueOf(parent.getVar()));
                 }
                 header.add(String.valueOf(myNode.getVar()));
-                String prob = "P(" + myNode.getVar() + "|";
+                StringBuilder prob = new StringBuilder("P(" + myNode.getVar() + "|");
                 for (node parent : myNode.getParents()) {
-                    prob += parent.getVar() + ",";
+                    prob.append(parent.getVar()).append(",");
                 }
-                prob = prob.substring(0, prob.length() - 1);
-                prob += ")";
-                header.add(prob);
+                prob = new StringBuilder(prob.substring(0, prob.length() - 1));
+                prob.append(")");
+                header.add(prob.toString());
 
         }
         else {
@@ -135,11 +127,11 @@ public class cpt implements Comparable<cpt>{
             int asciiTwo = 0;
             for (String var : this.cptTable.get(0)){
                 if(!var.contains("P"))
-                    asciiOne += (int) var.charAt(0);
+                    asciiOne += var.charAt(0);
             }
             for (String var : o.cptTable.get(0)){
                 if(!var.contains("P"))
-                    asciiTwo += (int) var.charAt(0);
+                    asciiTwo += var.charAt(0);
             }
             if(asciiOne > asciiTwo)
                 compare = 1;

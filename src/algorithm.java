@@ -100,11 +100,19 @@ public class algorithm {
             }
         }
 
+
         ans = findInCpt(myQuery, myCpts);
         if(!ans.isEmpty())
             return ans;
 
         minimizeCpts(myQuery, myCpts);
+
+/*        for (cpt myCpt: myCpts){
+            for (ArrayList<String> rowInCpt : myCpt.getCptTable()){
+                System.out.println(rowInCpt.toString());
+            }
+            System.out.println();
+        }*/
 
         for (String[] hiddenVariable : hiddenVariables) {
             PriorityQueue<cpt> cptPriorityQueue = new PriorityQueue<>();
