@@ -69,7 +69,7 @@ public class algorithm {
 
 
     static String variableElimination(String query, ArrayList<node> nodes) {
-        String ans = "";
+        String ans;
         cleanGraph(nodes);
         addOperations = 0;
         multiplyOperations = 0;
@@ -83,10 +83,21 @@ public class algorithm {
             }
         }
 
+        ArrayList<String> ancestors = findAncestors(myQuery, nodes);
+
+        //use only tables of relevant nodes - ancestors
         ArrayList<cpt> myCpts = new ArrayList<>();
         for (node myNode : nodes) {
-            cpt myCpt = new cpt(myNode.getMyCpt());
-            myCpts.add(myCpt);
+            if(ancestors.contains(Character.toString(myNode.getVar()))) {
+                cpt myCpt = new cpt(myNode.getMyCpt());
+                myCpts.add(myCpt);
+            }
+            else{
+                for (int i = 0; i < hiddenVariables.size(); i++){
+                    if (hiddenVariables.get(i)[0].equals(Character.toString(myNode.getVar())))
+                        hiddenVariables.remove(i);
+                }
+            }
         }
 
         ans = findInCpt(myQuery, myCpts);
@@ -109,11 +120,6 @@ public class algorithm {
                 cpt tableOne = cptPriorityQueue.poll();
                 cpt tableTwo = cptPriorityQueue.poll();
                 cpt joined = joinCpts(tableOne, tableTwo);
-                System.out.println("JOINED TABLE:");
-                for (ArrayList<String> row : joined.getCptTable()){
-                    System.out.println(row.toString());
-                }
-                System.out.println();
                 cptPriorityQueue.add(joined);
             }
             cpt eliminatedTable = eliminateVariable(Objects.requireNonNull(cptPriorityQueue.poll()), hiddenVariable[0]);
@@ -128,60 +134,70 @@ public class algorithm {
             cptPriorityQueue.add(joined);
         }
         cpt answer = cptPriorityQueue.poll();
-        BigDecimal normalized = normalize(answer, myQuery.get(0)[1]);
+        BigDecimal normalized = normalize(Objects.requireNonNull(answer), myQuery.get(0)[1]);
         ans = normalized.toString() + "," + addOperations + "," + multiplyOperations;
         return ans;
     }
 
 
+    private static ArrayList<String> findAncestors(ArrayList<String[]> myQuery, ArrayList<node> nodes) {
+        ArrayList<String> ancestors = new ArrayList<>();
+        for (String[] variableInQuery : myQuery) {
+            node tmp = graphCreator.getNode(variableInQuery[0].charAt(0), nodes);
+            Queue<node> nodesQueue = new LinkedList<>();
+            nodesQueue.add(tmp);
+            while (!nodesQueue.isEmpty()){
+                node poll = nodesQueue.poll();
+                if(!ancestors.contains(Character.toString(poll.getVar())))
+                    ancestors.add(Character.toString(poll.getVar()));
+                for (node parent : poll.getParents()){
+                    if(!ancestors.contains(Character.toString(parent.getVar())))
+                        nodesQueue.add(parent);
+                }
+            }
+        }
+        return ancestors;
+    }
+
+
     private static String findInCpt(ArrayList<String[]> myQuery, ArrayList<cpt> myCpts) {
-
- /*       for (cpt table : myCpts) {
+        String ans = "";
+        for (cpt table : myCpts) {
             int index = table.getCptTable().get(0).size();
-            ArrayList<String> probability = new ArrayList<>();
-            String probabilityAsString = table.getCptTable().get(0).get(index);
-            String givenVariable = probabilityAsString.substring(probability.indexOf('(') + 1, probability.indexOf('|'));
-            probability.add(givenVariable);
-            String evidenceVariablesAsString = probabilityAsString.substring(probability.indexOf('|')+1);
-            evidenceVariablesAsString = evidenceVariablesAsString.replace(")", "");
-            String[] evidenceVariables = evidenceVariablesAsString.split(",");
-            probability.addAll(Arrays.asList(evidenceVariables));
-
-            boolean flag = true;
-            for (String[] variable : myQuery){
-                if(!probability.contains(variable[0]))
-                    flag = false;
-            }
-            if (flag){
-                int rowIndex= -1;
-            }
-
-
-
-            for (int j = 1; j < table.getCptTable().size(); j++) {
-                for (String[] commonVal : commonValuesList) {
-                    int index = tableTwo.getCptTable().get(0).indexOf(commonVal[0]);
-                    if (!tableTwo.getCptTable().get(j).get(index).equals(commonVal[1]))
-                        flag = false;
-                    else {
-                        flag = true;
-                        rowIndexTableTwo = j;
-                    }
+            boolean isInCpt = true;
+            if(!table.getCptTable().get(0).get(index-2).equals(myQuery.get(0)[0]))
+                isInCpt = false;
+            for (int i = 1; i < myQuery.size(); i++) {
+                if (!table.getCptTable().get(0).contains(myQuery.get(i)[0])) {
+                    isInCpt = false;
+                    break;
                 }
             }
 
-        }*/
+            if (isInCpt){
+                int rowIndex;
+                for (int i = 1; i < table.getCptTable().size(); i++) {
+                    boolean isInRow = true;
+                    for (String[] variable : myQuery) {
+                        int variableIndex = table.getCptTable().get(0).indexOf(variable[0]);
+                        if (!table.getCptTable().get(i).get(variableIndex).equals(variable[1]))
+                            isInRow = false;
+                    }
+                    if(isInRow) {
+                        rowIndex = i;
+                        BigDecimal probability = new BigDecimal(table.getCptTable().get(rowIndex).get(index-1)).setScale(5, RoundingMode.HALF_EVEN);
+                        ans = probability.toString()+",0,0";
+                    }
+                }
+            }
+        }
 
-
-
-
-        return "";
+        return ans;
     }
 
 
     private static void minimizeCpts(ArrayList<String[]> myQuery, ArrayList<cpt> myCpts) {
         if(myQuery.size() > 1) {
-            // myQuery.remove(0); //TODO: check if it makes problems
             for (int j = 1; j < myQuery.size(); j++) {
                 for (int k = 0; k < myCpts.size(); k++) {
                     ArrayList<ArrayList<String>> currentCpt = myCpts.get(k).getCptTable();

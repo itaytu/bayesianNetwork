@@ -1,11 +1,11 @@
 import java.io.IOException;
 import java.util.ArrayList;
 
-public class main {
+public class ex1 {
 
 
     public static void main(String[] args) throws IOException {
-        String path = "input.txt";
+        String path = "input2.txt";
         ArrayList<ArrayList<String>> fileArray = textReader.fileAsArray(path);
         ArrayList<node> graph = graphCreator.createGraph(fileArray);
         String[] queries = textReader.queriesAsStringArray(fileArray.get(fileArray.size()-1));
